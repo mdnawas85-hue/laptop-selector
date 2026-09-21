@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laptop Allocation</title>
+<style>
+  :root{
+    --bg:#f6f6f7; --panel:#ffffff; --ink:#16181d; --muted:#6b7280; --line:#e3e5e9;
+    --accent:#c8102e; --accent-ink:#ffffff; --accent-soft:#fdecef;
+    --ok:#0f7b4f; --ok-soft:#e6f4ed; --warn:#9a6200; --warn-soft:#fdf3e0;
+    --stop:#a01722; --stop-soft:#fdecef; --info:#1b4fa0; --info-soft:#e9f0fb;
+    --radius:10px; --shadow:0 1px 2px rgba(16,18,24,.06), 0 4px 14px rgba(16,18,24,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#111318; --panel:#181b21; --ink:#e9eaee; --muted:#9aa1ad; --line:#282c34;
+      --accent:#ef4a63; --accent-ink:#1a0509; --accent-soft:#2a1419;
+      --ok:#4ade80; --ok-soft:#13291f; --warn:#fbbf24; --warn-soft:#2b2110;
+      --stop:#f87171; --stop-soft:#2b1416; --info:#7fb0ff; --info-soft:#131f33;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#111318; --panel:#181b21; --ink:#e9eaee; --muted:#9aa1ad; --line:#282c34;
+    --accent:#ef4a63; --accent-ink:#1a0509; --accent-soft:#2a1419;
+    --ok:#4ade80; --ok-soft:#13291f; --warn:#fbbf24; --warn-soft:#2b2110;
+    --stop:#f87171; --stop-soft:#2b1416; --info:#7fb0ff; --info-soft:#131f33;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;font-weight:640;letter-spacing:-.01em}
+  button,input,select,textarea{font:inherit;color:inherit}
+
+  .topbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+    padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+  .mark{width:26px;height:26px;border-radius:7px;background:var(--accent);color:var(--accent-ink);
+    display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+  .brand h1{font-size:15px}
+  .brand span{display:block;font-size:11.5px;color:var(--muted);font-weight:450;letter-spacing:0}
+
+  .roles{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+  .roles button{border:0;background:transparent;padding:6px 14px;border-radius:6px;cursor:pointer;
+    font-size:13px;font-weight:560;color:var(--muted)}
+  .roles button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+
+  .ghost{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 11px;
+    cursor:pointer;font-size:12.5px;font-weight:520;color:var(--muted)}
+  .ghost:hover{color:var(--ink);border-color:var(--muted)}
+  .ghost.sm{padding:4px 9px;font-size:11.5px}
+
+  .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--bg);
+    border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:520}
+  .pill:hover{border-color:var(--muted)}
+  .pip{width:7px;height:7px;border-radius:50%;flex:none;background:var(--ok)}
+  .pip.live{background:var(--ok)} .pip.csv{background:var(--info)} .pip.local{background:var(--muted)}
+
+  main{max-width:1120px;margin:0 auto;padding:22px 20px 64px}
+  .view[hidden]{display:none!important}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-bottom:18px}
+  .card-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .card-h h2{font-size:14.5px}
+  .card-h p{margin:0;font-size:12.5px;color:var(--muted)}
+  .card-b{padding:18px}
+
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px}
+  @media (max-width:860px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:620px){.grid{grid-template-columns:1fr}}
+  .f{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .f.wide{grid-column:1/-1}
+  .f.span2{grid-column:span 2}
+  @media (max-width:620px){.f.span2{grid-column:1/-1}}
+  .f label{font-size:12.5px;font-weight:560}
+  .f label .req{color:var(--accent);margin-left:2px}
+  .f .hint{font-size:11.5px;color:var(--muted)}
+  .f input,.f select{background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;width:100%;outline:0}
+  .f input:focus,.f select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .f.bad input,.f.bad select{border-color:var(--stop)}
+  .err{font-size:11.5px;color:var(--stop);display:none}
+  .f.bad .err{display:block}
+
+  fieldset{border:0;padding:0;margin:0;min-width:0}
+  legend{font-size:12.5px;font-weight:560;padding:0;margin-bottom:6px}
+
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  @media (max-width:760px){.tiers{grid-template-columns:1fr}}
+  .tier{border:1px solid var(--line);border-radius:10px;padding:13px 15px;cursor:pointer;background:var(--bg);
+    display:block;position:relative}
+  .tier input{position:absolute;opacity:0;pointer-events:none}
+  .tier .tname{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:650;margin-bottom:5px}
+  .tier .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .tier.lite .dot{background:var(--info)} .tier.standard .dot{background:var(--ok)} .tier.power .dot{background:var(--accent)}
+  .tier .tdesc{font-size:11.5px;color:var(--muted);line-height:1.45;margin-bottom:10px;min-height:32px}
+  .tier dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:0;font-size:11.5px;
+    border-top:1px solid var(--line);padding-top:8px}
+  .tier dt{color:var(--muted);padding:2.5px 0}
+  .tier dd{margin:0;padding:2.5px 0;text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;font-weight:560}
+  .tier:has(input:checked) dl{border-top-color:var(--accent)}
+  .sugg{position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--muted)}
+  .tavail{display:block;margin-top:9px;padding-top:8px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--muted);font-weight:600;text-align:right}
+  .tier:has(input:checked) .tavail{border-top-color:var(--accent)}
+  .tier:has(input:checked){border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+
+  .speclist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:11px;
+    padding-top:11px;border-top:1px dashed var(--line)}
+  @media (max-width:640px){.speclist{grid-template-columns:repeat(2,1fr)}}
+  .speclist div{min-width:0}
+  .speclist dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:640}
+  .speclist dd{margin:2px 0 0;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    line-height:1.35;word-break:break-word}
+
+  .match{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+  .match-h{padding:10px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;
+    font-size:12px;font-weight:620;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .match-b{padding:15px}
+  .picked{display:flex;align-items:flex-start;gap:13px}
+  .picked .icon{width:38px;height:38px;border-radius:9px;background:var(--panel);border:1px solid var(--line);
+    display:grid;place-items:center;flex:none}
+  .picked h3{font-size:15px;margin-bottom:3px}
+  .picked .meta{font-size:12px;color:var(--muted);line-height:1.6}
+  .why{margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted)}
+  .why b{color:var(--ink);font-weight:600}
+  .none{display:flex;gap:11px;align-items:flex-start;font-size:13px}
+
+  .actions{display:flex;gap:10px;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 20px;
+    font-weight:620;cursor:pointer;font-size:13.5px}
+  .primary:hover{filter:brightness(1.06)}
+  .primary:disabled{opacity:.45;cursor:not-allowed}
+  .note{font-size:12px;color:var(--muted);margin-left:auto}
+
+  .badge{display:inline-block;padding:2.5px 8px;border-radius:20px;font-size:11px;font-weight:640;white-space:nowrap}
+  .b-ok{background:var(--ok-soft);color:var(--ok)}
+  .b-warn{background:var(--warn-soft);color:var(--warn)}
+  .b-stop{background:var(--stop-soft);color:var(--stop)}
+  .b-info{background:var(--info-soft);color:var(--info)}
+  .b-mute{background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+    font-weight:620;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--bg)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+  .sub{font-size:11.5px;color:var(--muted)}
+  .rowacts{display:flex;gap:5px;justify-content:flex-end;white-space:nowrap}
+
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  @media (max-width:680px){.stat-row{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .stat b{display:block;font-size:24px;font-weight:660;letter-spacing:-.02em;line-height:1.2}
+  .stat span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+
+  .toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .toolbar input,.toolbar select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+  .toolbar input{flex:1;min-width:170px}
+
+  .empty{padding:44px 20px;text-align:center;color:var(--muted)}
+  .empty strong{display:block;color:var(--ink);font-size:14px;margin-bottom:4px;font-weight:600}
+
+  .srcline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .srcline b{color:var(--ink)}
+  details.opt{border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-top:14px}
+  details.opt summary{padding:10px 14px;cursor:pointer;font-size:12.5px;font-weight:560;color:var(--muted);
+    list-style:none;display:flex;align-items:center;gap:8px}
+  details.opt summary::-webkit-details-marker{display:none}
+  details.opt summary::before{content:"▸";font-size:11px;transition:transform .15s}
+  details.opt[open] summary::before{transform:rotate(90deg)}
+  details.opt summary:hover{color:var(--ink)}
+  details.opt .inner{padding:0 14px 14px}
+
+  .veil{position:fixed;inset:0;background:rgba(10,12,16,.55);display:grid;place-items:center;padding:20px;z-index:50}
+  .veil[hidden]{display:none!important}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(600px,100%);
+    max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+  .modal-h h3{font-size:15px;margin-right:auto}
+  .modal-b{padding:20px}
+  .modal-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .x{border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);padding:0 4px}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120%);
+    background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:9px;font-size:13px;font-weight:540;
+    z-index:80;transition:transform .28s cubic-bezier(.2,.8,.2,1);box-shadow:0 8px 30px rgba(0,0,0,.25);
+    max-width:min(560px,90vw)}
+  .toast.on{transform:translateX(-50%) translateY(0)}
+
+  #printArea{display:none}
+  @media print{
+    body{background:#fff;color:#000}
+    .topbar,main,.toast,.veil{display:none!important}
+    #printArea{display:block!important;font-size:12px}
+    #printArea h2{font-size:17px;margin-bottom:2px}
+    #printArea .p-sub{font-size:11px;color:#555;margin-bottom:18px}
+    #printArea table{min-width:0;font-size:12px}
+    #printArea th,#printArea td{border:1px solid #bbb;padding:6px 9px;text-align:left}
+    #printArea .sign{margin-top:44px;display:flex;gap:50px}
+    #printArea .sign div{flex:1;border-top:1px solid #000;padding-top:6px;font-size:11px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">H</div>
+    <div><h1>Laptop Allocation</h1><span>HR &amp; IT Asset Services</span></div>
+  </div>
+  <button class="pill" id="srcPill" onclick="setView('rec');document.getElementById('srcCard').scrollIntoView({behavior:'smooth',block:'center'})">
+    <span class="pip" id="srcPip"></span><span id="srcPillText">Stock</span>
+  </button>
+  <div class="roles" role="tablist">
+    <button role="tab" id="tab-new" aria-selected="true" onclick="setView('new')">New allocation</button>
+    <button role="tab" id="tab-rec" aria-selected="false" onclick="setView('rec')">Records &amp; stock</button>
+  </div>
+  <button class="ghost" onclick="exportCSV()">Export CSV</button>
+  <button class="ghost" onclick="toggleTheme()" id="themeBtn">Dark</button>
+</div>
+
+<main>
+
+  <!-- ================= NEW ALLOCATION ================= -->
+  <section class="view" id="view-new">
+    <div class="card">
+      <div class="card-h">
+        <h2>Allocate a laptop</h2>
+        <p>Completed by HR or IT. The device is selected automatically from available stock.</p>
+      </div>
+      <div class="card-b">
+        <form id="allocForm" novalidate>
+          <div class="grid">
+            <div class="f">
+              <label for="fBy">Raised by <span class="req">*</span></label>
+              <select id="fBy" name="raisedBy"><option>HR</option><option>IT</option></select>
+            </div>
+            <div class="f">
+              <label for="fByName">Your name <span class="req">*</span></label>
+              <input id="fByName" name="raisedByName" placeholder="Who is filling this in">
+              <div class="err">Enter your name.</div>
+            </div>
+            <div class="f">
+              <label for="fKind">Reason <span class="req">*</span></label>
+              <select id="fKind" name="kind">
+                <option>New joiner</option><option>Replacement</option>
+                <option>Temporary loan</option><option>Additional device</option>
+              </select>
+            </div>
+
+            <div class="f">
+              <label for="fName">Employee name <span class="req">*</span></label>
+              <input id="fName" name="name" autocomplete="off" placeholder="Full name as per HR records">
+              <div class="err">Enter the employee name.</div>
+            </div>
+            <div class="f">
+              <label for="fEmpId">Employee ID <span class="req">*</span></label>
+              <input id="fEmpId" name="empId" inputmode="numeric" placeholder="e.g. 27918">
+              <div class="err">Enter a numeric employee ID.</div>
+            </div>
+            <div class="f">
+              <label for="fEmail">Work email <span class="req">*</span></label>
+              <input id="fEmail" name="email" type="email" placeholder="name@herfy.com">
+              <div class="err">Enter a valid work email.</div>
+            </div>
+
+            <div class="f span2">
+              <label for="fTitle">Job title <span class="req">*</span>
+                <span class="hint" style="font-weight:450"> — sets the category and picks the device</span></label>
+              <input id="fTitle" name="title" list="titles" placeholder="Start typing, or pick from the list"
+                     oninput="onTitleChange()" onchange="onTitleChange()">
+              <datalist id="titles"></datalist>
+              <div class="err">Enter the job title.</div>
+            </div>
+            <div class="f">
+              <label for="fCC">Cost center <span class="req">*</span></label>
+              <input id="fCC" name="cc" list="ccs" inputmode="numeric" placeholder="e.g. 4021002">
+              <datalist id="ccs"></datalist>
+              <div class="err">Enter the cost center.</div>
+            </div>
+          </div>
+
+          <fieldset style="margin-top:20px">
+            <legend>User category <span style="color:var(--accent)">*</span>
+              <span class="hint" style="font-weight:450"> — determines which device is allocated</span></legend>
+            <div class="tiers">
+              <label class="tier lite">
+                <input type="radio" name="tier" value="lite" onchange="runMatch()">
+                <span class="sugg" id="sg-lite" hidden>Suggested</span>
+                <span class="tname"><span class="dot"></span>Lite user</span>
+                <span class="tdesc">Task laptop — email, browser, light office work. Store, floor &amp; admin roles.</span>
+                <dl>
+                  <dt>CPU</dt><dd>Core i3 / Ryzen 3</dd>
+                  <dt>RAM</dt><dd>8 GB</dd>
+                  <dt>Storage</dt><dd>256 GB SSD</dd>
+                  <dt>GPU</dt><dd>Integrated</dd>
+                </dl>
+                <span class="tavail" id="av-lite"></span>
+              </label>
+              <label class="tier standard">
+                <input type="radio" name="tier" value="standard" checked onchange="runMatch()">
+                <span class="sugg" id="sg-standard" hidden>Suggested</span>
+                <span class="tname"><span class="dot"></span>Standard user</span>
+                <span class="tdesc">Business laptop — ERP / SAP, spreadsheets, everyday multitasking.</span>
+                <dl>
+                  <dt>CPU</dt><dd>Core i5 / Ryzen 5</dd>
+                  <dt>RAM</dt><dd>16 GB</dd>
+                  <dt>Storage</dt><dd>512 GB SSD</dd>
+                  <dt>GPU</dt><dd>Integrated</dd>
+                </dl>
+                <span class="tavail" id="av-standard"></span>
+              </label>
+              <label class="tier power">
+                <input type="radio" name="tier" value="power" onchange="runMatch()">
+                <span class="sugg" id="sg-power" hidden>Suggested</span>
+                <span class="tname"><span class="dot"></span>Power user</span>
+                <span class="tdesc">Mobile workstation — CAD, BI, video, virtualization, dev environments.</span>
+                <dl>
+                  <dt>CPU</dt><dd>Core i7 / i9 HX · Ryzen 9</dd>
+                  <dt>RAM</dt><dd>32 – 64 GB</dd>
+                  <dt>Storage</dt><dd>1 TB SSD</dd>
+                  <dt>GPU</dt><dd>Discrete</dd>
+                </dl>
+                <span class="tavail" id="av-power"></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div style="margin-top:20px">
+            <div class="match">
+              <div class="match-h">
+                <span>Allocated device</span>
+                <span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0" id="mAlts"></span>
+              </div>
+              <div class="match-b" id="mBody"></div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary" id="submitBtn">Confirm allocation</button>
+            <button type="button" class="ghost" onclick="resetForm()">Clear</button>
+            <span class="note">Everything is saved in this browser.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RECORDS & STOCK ================= -->
+  <section class="view" id="view-rec" hidden>
+
+    <div class="stat-row">
+      <div class="stat"><b id="sTotal">0</b><span>Allocations</span></div>
+      <div class="stat"><b id="sLite">0</b><span>Lite available</span></div>
+      <div class="stat"><b id="sStd">0</b><span>Standard available</span></div>
+      <div class="stat"><b id="sPow">0</b><span>Power available</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Allocation records</h2><p>Every device issued through this form.</p></div>
+      <div class="toolbar">
+        <input id="qSearch" placeholder="Search name, ID, email, ref, asset…" oninput="renderRecords()">
+        <select id="qTier" onchange="renderRecords()">
+          <option value="">All categories</option>
+          <option value="lite">Lite</option><option value="standard">Standard</option><option value="power">Power</option>
+        </select>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Ref</th><th>Employee</th><th>Category</th><th>Reason</th><th>Device issued</th><th>Raised by</th><th></th></tr></thead>
+        <tbody id="recRows"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card" id="srcCard">
+      <div class="card-h">
+        <h2>Laptop stock</h2>
+        <p id="stockSub"></p>
+      </div>
+      <div class="toolbar">
+        <input id="qStock" placeholder="Search asset code, model, serial…" oninput="renderStock()">
+        <select id="qStockState" onchange="renderStock()">
+          <option value="">All units</option>
+          <option value="available">Available only</option>
+          <option value="blocked">In repair / not for issue</option>
+          <option value="issued">Issued</option>
+        </select>
+        <button class="ghost" onclick="openUnit()">+ Add unit</button>
+        <button class="ghost" onclick="document.getElementById('csvFile').click()">Import CSV</button>
+        <input type="file" id="csvFile" accept=".csv,text/csv" hidden onchange="importCSV(this.files[0]);this.value=''">
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Asset code</th><th>Model</th><th>Category</th><th>Serial</th><th>Year</th><th>Status</th><th></th></tr></thead>
+        <tbody id="stockRows"></tbody>
+      </table></div>
+      <div class="card-b" style="border-top:1px solid var(--line)">
+        <div class="srcline">
+          <span id="srcDetail"></span>
+          <span style="margin-left:auto;display:flex;gap:8px">
+            <button class="ghost" onclick="resetStock()">Reset to built-in list</button>
+          </span>
+        </div>
+
+        <details class="opt" id="apiOpt">
+          <summary>Connect to the IT Asset Manager (optional)</summary>
+          <div class="inner">
+            <p class="sub" style="margin:0 0 12px">
+              Pulls stock live from the asset register instead of the list above.
+              Leave this closed to keep the tool fully standalone.
+            </p>
+            <div class="grid" style="grid-template-columns:2fr 2fr 1fr">
+              <div class="f">
+                <label for="cfgUrl">Asset Manager URL</label>
+                <input id="cfgUrl" placeholder="https://asset-dashboard-dun.vercel.app">
+              </div>
+              <div class="f">
+                <label for="cfgKey">API key <span class="hint" style="font-weight:450">— Control Center</span></label>
+                <input id="cfgKey" type="password" placeholder="hfa_…" autocomplete="off">
+              </div>
+              <div class="f">
+                <label>&nbsp;</label>
+                <button type="button" class="ghost" style="padding:9px 12px" onclick="saveAndSync()">Connect &amp; sync</button>
+              </div>
+            </div>
+            <p class="sub" id="apiStatus" style="margin:10px 0 0"></p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ================= ADD / EDIT UNIT ================= -->
+<div class="veil" id="veil" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uTitle">
+    <div class="modal-h">
+      <h3 id="uTitle">Add a laptop</h3>
+      <button class="x" onclick="closeUnit()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-b">
+      <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="f">
+          <label for="uCode">Asset code <span class="req">*</span></label>
+          <input id="uCode" placeholder="e.g. DEMO-0011">
+          <div class="err">Enter a unique asset code.</div>
+        </div>
+        <div class="f">
+          <label for="uSerial">Serial number</label>
+          <input id="uSerial" placeholder="e.g. PF4R2EXC">
+        </div>
+        <div class="f span2" style="grid-column:1/-1">
+          <label for="uModel">Model <span class="req">*</span>
+            <span class="hint" style="font-weight:450"> — sets the category automatically</span></label>
+          <input id="uModel" placeholder="e.g. Lenovo ThinkPad E16 Gen2" oninput="autoGrade()">
+          <div class="err">Enter the model.</div>
+        </div>
+        <div class="f">
+          <label for="uYear">Year</label>
+          <input id="uYear" inputmode="numeric" placeholder="e.g. 2026" oninput="autoGrade()">
+        </div>
+        <div class="f">
+          <label for="uCpu">CPU <span class="hint" style="font-weight:450">— optional</span></label>
+          <input id="uCpu" placeholder="e.g. Core i5-1335U">
+        </div>
+        <div class="f">
+          <label for="uRam">RAM <span class="hint" style="font-weight:450">— GB</span></label>
+          <input id="uRam" inputmode="numeric" placeholder="e.g. 16">
+        </div>
+        <div class="f">
+          <label for="uDisk">Storage <span class="hint" style="font-weight:450">— optional</span></label>
+          <input id="uDisk" placeholder="e.g. 512 GB SSD">
+        </div>
+        <div class="f">
+          <label for="uGpu">GPU <span class="hint" style="font-weight:450">— optional</span></label>
+          <input id="uGpu" placeholder="e.g. Integrated">
+        </div>
+        <div class="f">
+          <label for="uTier">Category</label>
+          <select id="uTier">
+            <option value="lite">Lite user</option>
+            <option value="standard">Standard user</option>
+            <option value="power">Power user</option>
+          </select>
+          <div class="hint" id="uTierHint"></div>
+        </div>
+        <div class="f">
+          <label for="uCond">Status</label>
+          <select id="uCond">
+            <option value="ok">Available</option>
+            <option value="repair">In repair</option>
+            <option value="retire">Not for issue</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="uLoc">Location</label>
+          <input id="uLoc" placeholder="IT - Head Office WH">
+        </div>
+        <div class="f" style="grid-column:1/-1">
+          <label for="uRemark">Note</label>
+          <input id="uRemark" placeholder="Optional — condition, accessories, who is holding it">
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="ghost" onclick="closeUnit()">Cancel</button>
+      <button class="primary" onclick="saveUnit()" id="uSave">Add unit</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+/* ==================================================================
+   Standalone laptop allocation tool.
+   Stock lives in this browser. It is seeded from the IT asset register
+   export below, and can be edited by hand, replaced by a CSV import, or
+   (optionally) synced from the IT Asset Manager API.
+================================================================== */
+const STOCK_KEY = "herfy.laptop.stock.v3";
+const REC_KEY   = "herfy.laptop.alloc.v2";
+const CFG_KEY   = "herfy.laptop.source.v1";
+const DEFAULT_URL = "https://asset-dashboard-dun.vercel.app";
+
+/* Sample stock — fictitious demo rows so the tool works before you connect a source.
+   Replace via CSV import or the IT Asset Manager sync. No real asset data here. */
+const SEED = [
+  {asset_code:"DEMO-0001", brand_model:"Lenovo Legion Gaming 16",              serial_number:"SAMPLE-L001", mfd_year:"2024", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0002", brand_model:"Lenovo ThinkPad E16 Gen1",             serial_number:"SAMPLE-T002", mfd_year:"2025", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0003", brand_model:"Dell Precision 3580 Mobile Workstation", serial_number:"SAMPLE-P003", mfd_year:"2024", remark:"",                          employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0004", brand_model:"HP EliteBook 840 G9",                  serial_number:"SAMPLE-E004", mfd_year:"2023", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0005", brand_model:"Dell Latitude 5520",                   serial_number:"SAMPLE-L005", mfd_year:"2021", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0006", brand_model:"HP Pavilion Laptop 14",                serial_number:"SAMPLE-H006", mfd_year:"2022", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0007", brand_model:"Dell Vostro 15 3510",                  serial_number:"SAMPLE-V007", mfd_year:"2020", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0008", brand_model:"Dell Inspiron 15 5567",                serial_number:"SAMPLE-I008", mfd_year:"2017", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0009", brand_model:"Lenovo ThinkPad T480",                 serial_number:"SAMPLE-T009", mfd_year:"2024", remark:"Damaged and waiting to be repaired.", employee_id:"DEMO - Sample Stock", asset_type:"Laptop"},
+  {asset_code:"DEMO-0010", brand_model:"Sony VAIO SVF152C29W",                 serial_number:"SAMPLE-S010", mfd_year:"2013", remark:"",                            employee_id:"DEMO - Sample Stock", asset_type:"Laptop"}
+];
+
+/* Target configuration per category — the standard IT issues against. */
+const TIERS = {
+  lite:     {rank:1, label:"Lite user",     ramMin:8,
+             spec:{cpu:"Core i3 / Ryzen 3", ram:"8 GB", disk:"256 GB SSD", gpu:"Integrated"}},
+  standard: {rank:2, label:"Standard user", ramMin:16,
+             spec:{cpu:"Core i5 / Ryzen 5", ram:"16 GB", disk:"512 GB SSD", gpu:"Integrated"}},
+  power:    {rank:3, label:"Power user",    ramMin:32,
+             spec:{cpu:"Core i7 / i9 HX · Ryzen 9", ram:"32 – 64 GB", disk:"1 TB SSD", gpu:"Discrete"}}
+};
+const THIS_YEAR = new Date().getFullYear();
+
+/* Pull spec out of a model string when the register embeds it,
+   e.g. "NB Dell Latitude E5520 Ci7/8G/512SSD-DOS 15.6". */
+function specFromModel(model){
+  const m = String(model || "");
+  const out = {cpu:"", ram:null, disk:"", gpu:""};
+  const cpu = m.match(/\bC?i([3579])\b/i);            if (cpu)  out.cpu  = "Core i" + cpu[1];
+  const ram = m.match(/\b(\d{1,3})\s?G(?:B)?\b/i);    if (ram)  out.ram  = parseInt(ram[1], 10);
+  const dsk = m.match(/\b(\d{3,4})\s?(GB|G)?\s?(SSD|HDD)\b/i) || m.match(/\b(\d)\s?TB\b/i);
+  if (dsk) out.disk = /TB/i.test(dsk[0]) ? dsk[1] + " TB SSD" : dsk[1] + " GB " + (dsk[3] || "SSD").toUpperCase();
+  if (/gaming|\brtx\b|\bgtx\b|discrete|quadro|radeon/i.test(m)) out.gpu = "Discrete";
+  return out;
+}
+
+/* ---- automatic grading ---- */
+const HI_POWER = /gaming|precision|zbook|mobile workstation|legion|nitro|\brog\b|\btuf\b|\bxps\b/i;
+const BUSINESS = /thinkpad|latitude|elitebook|probook|precision|zbook|macbook pro/i;
+function gradeTier(model, year){
+  const m = String(model || ""), age = year ? THIS_YEAR - year : null;
+  if (HI_POWER.test(m)) return "power";
+  if (BUSINESS.test(m) && age !== null && age <= 2) return "power";
+  if (age === null || age <= 7) return "standard";
+  return "lite";
+}
+function gradeCondition(remark, year){
+  const r = String(remark || ""), age = year ? THIS_YEAR - year : null;
+  if (/dispos|scrap|retire|e-?waste|write.?off/i.test(r)) return "retire";
+  if (/damag|repair|faulty|broken|not working|dead|burn/i.test(r)) return "repair";
+  if (age !== null && age >= 12) return "retire";
+  return "ok";
+}
+const isUnassigned = empId => !/^\d+$/.test(String(empId ?? "").trim());
+
+function mapAsset(row){
+  const yr = parseInt(row.mfd_year, 10);
+  const y = Number.isFinite(yr) && yr > 1990 ? yr : null;
+  const model = String(row.brand_model || "").trim() || "(model not recorded)";
+  const s = specFromModel(model);
+  return {
+    code: String(row.asset_code || "").trim(),
+    model,
+    serial: String(row.serial_number || "").trim() || "—",
+    year: y,
+    loc: String(row.employee_id || "").trim() || "—",
+    remark: String(row.remark || "").trim(),
+    tier: gradeTier(model, y),
+    condition: gradeCondition(row.remark, y),
+    cpu: s.cpu, ram: s.ram, disk: s.disk, gpu: s.gpu
+  };
+}
+/* Does the unit's recorded RAM fall short of the category target?
+   Returns null when RAM is not recorded — unknown is not the same as short. */
+function ramShortfall(unit, tier){
+  if (!unit || !unit.ram) return null;
+  return unit.ram < TIERS[tier].ramMin ? {have:unit.ram, need:TIERS[tier].ramMin} : null;
+}
+function specLine(u){
+  const bits = [u.cpu, u.ram ? u.ram + " GB" : "", u.disk, u.gpu].filter(Boolean);
+  return bits.length ? bits.join(" · ") : "";
+}
+/* For the issue form: the unit's own spec if recorded, otherwise the
+   category standard, clearly labelled as such. */
+function deviceSpecText(d){
+  const own = specLine(d);
+  if (own) return own;
+  const t = TIERS[d.tier].spec;
+  return `${t.cpu} · ${t.ram} · ${t.disk} · ${t.gpu}  (${TIERS[d.tier].label} standard)`;
+}
+function assetsToStock(rows){
+  return rows
+    .filter(r => String(r.asset_type || "").trim().toLowerCase() === "laptop")
+    .filter(r => isUnassigned(r.employee_id))
+    .map(mapAsset).filter(u => u.code)
+    .sort((a,b) => (TIERS[b.tier].rank - TIERS[a.tier].rank) || ((b.year ?? 0) - (a.year ?? 0)));
+}
+
+/* ---------------- state ---------------- */
+function loadJSON(k, fb){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; }catch(e){ return fb; } }
+function saveJSON(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+
+let records = loadJSON(REC_KEY, []);
+let cfg     = loadJSON(CFG_KEY, {url:"", key:""});
+let saved   = loadJSON(STOCK_KEY, null);
+let stock   = (saved && Array.isArray(saved.stock) && saved.stock.length) ? saved.stock : assetsToStock(SEED);
+let origin  = (saved && saved.origin) || {kind:"builtin", at:null, note:"sample data — import your stock"};
+let currentPick = null, autoTier = null, lastTitle = "", editingCode = null;
+
+function persistStock(){ saveJSON(STOCK_KEY, {stock, origin}); }
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const issuedCodes = () => new Set(records.map(r => r.device.code));
+const freeUnits   = () => { const t = issuedCodes(); return stock.filter(u => !t.has(u.code)); };
+const allocatable = () => freeUnits().filter(u => u.condition === "ok");
+const availByTier = t => allocatable().filter(u => u.tier === t).length;
+
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("on"), 3200);
+}
+function nextRef(){ return "LA-" + THIS_YEAR + "-" + String(records.length + 1).padStart(4,"0"); }
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"numeric"}) + " " +
+         d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+}
+function tierBadge(t){
+  const m = {lite:"b-info", standard:"b-ok", power:"b-stop"};
+  return `<span class="badge ${m[t]||"b-mute"}">${esc(TIERS[t] ? TIERS[t].label : t)}</span>`;
+}
+
+/* ==================================================================
+   ALLOCATION
+================================================================== */
+function pickDevice(want){
+  const wantRank = TIERS[want].rank;
+  const pool = allocatable()
+    .filter(u => TIERS[u.tier].rank >= wantRank)
+    .sort((a,b) => (TIERS[a.tier].rank - TIERS[b.tier].rank) ||
+                   ((b.year ?? 0) - (a.year ?? 0)) || a.code.localeCompare(b.code));
+  return {unit: pool[0] || null, pool};
+}
+
+const TITLE_RULES = [
+  [/(director|chief|ceo|cto|cfo|president|board)/i, "power"],
+  [/(developer|engineer|architect|designer|analyst|\bbi\b|data|consultant|network|system|infrastructure|application)/i, "power"],
+  [/(manager|head|supervisor|accountant|specialist|officer|coordinator|buyer|support|hr|payroll|procurement|marketing)/i, "standard"],
+  [/(store\s*keeper|storekeeper|clerk|dispatch|labor|driver|receptionist|cashier|helper|attendant|guard)/i, "lite"]
+];
+
+function onTitleChange(){
+  const title = $("fTitle").value.trim();
+  if (title === lastTitle) return;
+  lastTitle = title;
+  ["lite","standard","power"].forEach(t => $("sg-"+t).hidden = true);
+  if (!title){ runMatch(); return; }
+  const hit = TITLE_RULES.find(([re]) => re.test(title));
+  const t = hit ? hit[1] : "standard";
+  $("sg-"+t).hidden = false;
+  document.querySelector(`input[name="tier"][value="${t}"]`).checked = true;
+  autoTier = t;
+  runMatch();
+}
+
+function runMatch(){
+  ["lite","standard","power"].forEach(t => {
+    const n = availByTier(t);
+    $("av-"+t).textContent = n ? n + " free" : "none free";
+  });
+  const want = document.querySelector('input[name="tier"]:checked').value;
+  const {unit, pool} = pickDevice(want);
+  currentPick = unit;
+  $("submitBtn").disabled = !unit;
+  const body = $("mBody"), alts = $("mAlts");
+
+  if (!unit){
+    alts.textContent = "";
+    body.innerHTML = `<div class="none"><span class="badge b-stop">No stock</span>
+      <div>No <b>${esc(TIERS[want].label.toLowerCase())}</b> device is available.
+      <div class="sub" style="margin-top:4px">Add a unit in Records &amp; stock, or choose a lower category if the role allows it.</div></div></div>`;
+    return;
+  }
+  const upgraded = unit.tier !== want;
+  alts.textContent = pool.length > 1 ? (pool.length - 1) + " other unit(s) would also fit" : "only unit that fits";
+  const target = TIERS[unit.tier].spec;
+  const short  = ramShortfall(unit, unit.tier);
+  const known  = specLine(unit);
+  body.innerHTML = `
+    <div class="picked">
+      <div class="icon">${unit.tier === "power" ? "◆" : unit.tier === "standard" ? "●" : "○"}</div>
+      <div style="min-width:0">
+        <h3>${esc(unit.model)}</h3>
+        <div class="meta"><span class="mono">${esc(unit.code)}</span> · Serial <span class="mono">${esc(unit.serial)}</span>${unit.year ? " · " + unit.year : ""}<br>${esc(unit.loc)}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">${tierBadge(unit.tier)}</div>
+    </div>
+    <dl class="speclist">
+      <div><dt>CPU</dt><dd>${esc(unit.cpu || target.cpu)}</dd></div>
+      <div><dt>RAM</dt><dd>${unit.ram ? unit.ram + " GB" : esc(target.ram)}</dd></div>
+      <div><dt>Storage</dt><dd>${esc(unit.disk || target.disk)}</dd></div>
+      <div><dt>GPU</dt><dd>${esc(unit.gpu || target.gpu)}</dd></div>
+    </dl>
+    <div class="sub" style="margin-top:7px">
+      ${known
+        ? `Configuration recorded for this unit. Category target: ${esc(target.cpu)} · ${esc(target.ram)} · ${esc(target.disk)} · ${esc(target.gpu)}.`
+        : `Showing the <b>${esc(TIERS[unit.tier].label.toLowerCase())} target configuration</b> — this unit's actual spec is not recorded. Add it via Edit in Records &amp; stock.`}
+    </div>
+    <div class="why">
+      ${short ? `<div style="margin-bottom:6px"><span class="badge b-warn">Below target</span>
+        This unit has ${short.have} GB RAM; the ${esc(TIERS[unit.tier].label.toLowerCase())} standard is ${short.need} GB.</div>` : ""}
+      ${upgraded
+        ? `<b>Upgraded automatically.</b> No ${esc(TIERS[want].label.toLowerCase())} unit is free, so the next category up was allocated.`
+        : `<b>Matched to ${esc(TIERS[want].label.toLowerCase())}.</b> Newest available unit in this category.`}
+      ${autoTier && want !== autoTier
+        ? `<div style="margin-top:6px"><span class="badge b-info">Override</span> Set manually — the job title indicates <b>${esc(TIERS[autoTier].label.toLowerCase())}</b>.</div>` : ""}
+      ${unit.remark ? `<div style="margin-top:6px"><span class="badge b-warn">Note</span> ${esc(unit.remark)}</div>` : ""}
+    </div>`;
+}
+
+/* ---------------- form ---------------- */
+function clearErrors(){ document.querySelectorAll(".f.bad").forEach(f => f.classList.remove("bad")); }
+function resetForm(){
+  $("allocForm").reset(); clearErrors();
+  autoTier = null; lastTitle = "";
+  ["lite","standard","power"].forEach(t => $("sg-"+t).hidden = true);
+  runMatch();
+}
+function validate(fd){
+  clearErrors();
+  let ok = true;
+  const bad = id => { $(id).closest(".f").classList.add("bad"); ok = false; };
+  if (!fd.get("raisedByName").trim()) bad("fByName");
+  if (!fd.get("name").trim()) bad("fName");
+  if (!/^\d{1,8}$/.test(fd.get("empId").trim())) bad("fEmpId");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fd.get("email").trim())) bad("fEmail");
+  if (!fd.get("title").trim()) bad("fTitle");
+  if (!fd.get("cc").trim()) bad("fCC");
+  if (!ok) document.querySelector(".f.bad input")?.focus();
+  return ok;
+}
+
+$("allocForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  if (!validate(fd)) { toast("Please correct the highlighted fields."); return; }
+  if (!currentPick) { toast("No device available to allocate."); return; }
+  const want = fd.get("tier"), u = currentPick;
+  records.unshift({
+    ref: nextRef(), created: new Date().toISOString(),
+    raisedBy: fd.get("raisedBy"), raisedByName: fd.get("raisedByName").trim(),
+    kind: fd.get("kind"), name: fd.get("name").trim(), empId: fd.get("empId").trim(),
+    email: fd.get("email").trim(), title: fd.get("title").trim(), cc: fd.get("cc").trim(),
+    tier: want, upgraded: u.tier !== want,
+    device: {code:u.code, model:u.model, serial:u.serial, year:u.year, tier:u.tier,
+             cpu:u.cpu || "", ram:u.ram || null, disk:u.disk || "", gpu:u.gpu || ""}
+  });
+  saveJSON(REC_KEY, records);
+  const ref = records[0].ref;
+  resetForm(); setView("rec");
+  toast(`${u.code} allocated · ${ref}`);
+});
+
+/* ==================================================================
+   STOCK MANAGEMENT
+================================================================== */
+function autoGrade(){
+  const yr = parseInt($("uYear").value, 10);
+  const y = Number.isFinite(yr) && yr > 1990 ? yr : null;
+  const t = gradeTier($("uModel").value, y);
+  $("uTier").value = t;
+  $("uTierHint").textContent = $("uModel").value.trim()
+    ? `Graded ${TIERS[t].label.toLowerCase()} from the model and year — change it if needed.` : "";
+}
+
+function openUnit(code){
+  editingCode = code || null;
+  const u = code ? stock.find(x => x.code === code) : null;
+  $("uTitle").textContent = u ? "Edit " + u.code : "Add a laptop";
+  $("uSave").textContent  = u ? "Save changes" : "Add unit";
+  $("uCode").value   = u ? u.code : "";
+  $("uCode").disabled = !!u;
+  $("uModel").value  = u ? u.model : "";
+  $("uSerial").value = u && u.serial !== "—" ? u.serial : "";
+  $("uYear").value   = u && u.year ? u.year : "";
+  $("uTier").value   = u ? u.tier : "standard";
+  $("uCond").value   = u ? u.condition : "ok";
+  $("uLoc").value    = u && u.loc !== "—" ? u.loc : "IT - Head Office WH";
+  $("uRemark").value = u ? u.remark : "";
+  $("uCpu").value    = u ? (u.cpu || "") : "";
+  $("uRam").value    = u && u.ram ? u.ram : "";
+  $("uDisk").value   = u ? (u.disk || "") : "";
+  $("uGpu").value    = u ? (u.gpu || "") : "";
+  $("uTierHint").textContent = "";
+  clearErrors();
+  $("veil").hidden = false;
+  setTimeout(()=> (u ? $("uModel") : $("uCode")).focus(), 30);
+}
+function closeUnit(){ $("veil").hidden = true; editingCode = null; $("uCode").disabled = false; }
+
+function saveUnit(){
+  clearErrors();
+  const code = $("uCode").value.trim(), model = $("uModel").value.trim();
+  let ok = true;
+  if (!code) { $("uCode").closest(".f").classList.add("bad"); ok = false; }
+  if (!model){ $("uModel").closest(".f").classList.add("bad"); ok = false; }
+  if (!editingCode && code && stock.some(u => u.code === code)){
+    $("uCode").closest(".f").classList.add("bad");
+    $("uCode").closest(".f").querySelector(".err").textContent = "That asset code is already in the list.";
+    ok = false;
+  }
+  if (!ok) return;
+
+  const yr = parseInt($("uYear").value, 10);
+  const ramV = parseInt($("uRam").value, 10);
+  const unit = {
+    code, model,
+    serial: $("uSerial").value.trim() || "—",
+    year: Number.isFinite(yr) && yr > 1990 ? yr : null,
+    loc: $("uLoc").value.trim() || "—",
+    remark: $("uRemark").value.trim(),
+    tier: $("uTier").value,
+    condition: $("uCond").value,
+    cpu: $("uCpu").value.trim(),
+    ram: Number.isFinite(ramV) && ramV > 0 ? ramV : null,
+    disk: $("uDisk").value.trim(),
+    gpu: $("uGpu").value.trim()
+  };
+  if (editingCode){
+    stock = stock.map(u => u.code === editingCode ? unit : u);
+    toast(code + " updated.");
+  } else {
+    stock = [unit, ...stock];
+    toast(code + " added to stock.");
+  }
+  markEdited(); closeUnit(); refreshAll();
+}
+
+function setCondition(code, cond){
+  stock = stock.map(u => u.code === code ? {...u, condition: cond} : u);
+  markEdited(); refreshAll();
+  const label = {ok:"available", repair:"in repair", retire:"not for issue"}[cond];
+  toast(code + " marked " + label + ".");
+}
+function removeUnit(code){
+  if (issuedCodes().has(code)){ toast("That unit is on an allocation record — it cannot be removed."); return; }
+  stock = stock.filter(u => u.code !== code);
+  markEdited(); refreshAll();
+  toast(code + " removed from stock.");
+}
+function markEdited(){
+  if (origin.kind === "builtin") origin = {kind:"edited", at:new Date().toISOString(), note:"built-in list, edited here"};
+  else origin = {...origin, at:new Date().toISOString()};
+  persistStock();
+}
+function resetStock(){
+  if (!confirm("Replace the current stock list with the built-in list from the asset register export?\n\nAllocation records are kept.")) return;
+  stock = assetsToStock(SEED);
+  origin = {kind:"builtin", at:null, note:"sample data — import your stock"};
+  persistStock(); refreshAll();
+  toast("Stock reset to the built-in list.");
+}
+
+/* ---- CSV import (an Asset Manager export works as-is) ---- */
+function parseCSV(text){
+  const rows = []; let row = [], cur = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"'){ if (text[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === ","){ row.push(cur); cur = ""; }
+    else if (c === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (c !== "\r") cur += c;
+  }
+  if (cur || row.length){ row.push(cur); rows.push(row); }
+  if (!rows.length) return [];
+  const head = rows.shift().map(h => h.trim());
+  return rows.filter(r => r.length && r.some(c => c.trim()))
+             .map(r => Object.fromEntries(head.map((h,i) => [h, (r[i] ?? "").trim()])));
+}
+function importCSV(file){
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try{
+      const rows = parseCSV(String(fr.result));
+      if (!rows.length) throw new Error("no rows found");
+      if (!("asset_code" in rows[0]) || !("asset_type" in rows[0]))
+        throw new Error("missing asset_code / asset_type columns");
+      const next = assetsToStock(rows);
+      if (!next.length) throw new Error("no unassigned laptops in this file");
+      stock  = next;
+      origin = {kind:"csv", at:new Date().toISOString(), note:file.name};
+      persistStock(); refreshAll();
+      toast(`Imported ${next.length} available laptop(s) from ${file.name}.`);
+    }catch(e){ toast("Could not read that CSV — " + e.message); }
+  };
+  fr.onerror = () => toast("Could not read that file.");
+  fr.readAsText(file);
+}
+
+/* ---- optional live sync ---- */
+async function saveAndSync(){
+  cfg = {url: $("cfgUrl").value.trim(), key: $("cfgKey").value.trim()};
+  saveJSON(CFG_KEY, cfg);
+  const url = cfg.url.replace(/\/+$/,"");
+  if (!url){ $("apiStatus").textContent = "Enter the Asset Manager URL first."; return; }
+  $("apiStatus").textContent = "Connecting…";
+  const qs = new URLSearchParams({asset_type:"Laptop"});
+  if (cfg.key) qs.set("api_key", cfg.key);
+  try{
+    const ctl = new AbortController();
+    const timer = setTimeout(()=>ctl.abort(), 20000);
+    const res = await fetch(`${url}/api/assets?${qs}`, {signal:ctl.signal, headers: cfg.key ? {"X-API-Key": cfg.key} : {}});
+    clearTimeout(timer);
+    if (!res.ok){
+      let why = `HTTP ${res.status}`;
+      if (res.status === 401) why = "API key rejected (needs read:assets)";
+      if (res.status === 500) why = "Asset Manager error (HTTP 500) — its database is not responding";
+      throw new Error(why);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("unexpected response");
+    const next = assetsToStock(data);
+    stock  = next;
+    origin = {kind:"live", at:new Date().toISOString(), note:`${data.length} assets scanned`};
+    persistStock(); refreshAll();
+    $("apiStatus").textContent = `Synced — ${next.length} laptop(s) available.`;
+    toast(`Synced ${next.length} laptop(s) from the asset register.`);
+  }catch(err){
+    const msg = err.name === "AbortError" ? "no response (timed out)" : err.message;
+    $("apiStatus").textContent = "Could not sync — " + msg + ". The stock list above is unchanged.";
+    toast("Sync failed — " + msg);
+  }
+}
+
+/* ==================================================================
+   RENDER
+================================================================== */
+function setView(v){
+  $("view-new").hidden = v !== "new";
+  $("view-rec").hidden = v !== "rec";
+  $("tab-new").setAttribute("aria-selected", v === "new");
+  $("tab-rec").setAttribute("aria-selected", v === "rec");
+  refreshAll();
+}
+function refreshAll(){ renderSource(); renderStats(); renderRecords(); renderStock(); runMatch(); }
+
+function renderSource(){
+  const n = allocatable().length;
+  const pip = origin.kind === "live" ? "live" : origin.kind === "csv" ? "csv" : "local";
+  $("srcPip").className = "pip " + pip;
+  $("srcPillText").textContent = `${n} available`;
+  $("stockSub").textContent = `${stock.length} unit(s) in the list · ${n} available to allocate`;
+  $("srcDetail").innerHTML = {
+    builtin: `<b>Sample data</b> — ${esc(origin.note)}. Import a CSV or sync the Asset Manager to load real stock.`,
+    edited:  `<b>Sample data, edited here.</b> Last change ${origin.at ? fmtDate(origin.at) : "—"}.`,
+    csv:     `<b>Imported from ${esc(origin.note)}</b> · ${origin.at ? fmtDate(origin.at) : ""}.`,
+    live:    `<b>Synced from the IT Asset Manager</b> · ${origin.at ? fmtDate(origin.at) : ""} — ${esc(origin.note)}.`
+  }[origin.kind] || "";
+}
+
+function renderStats(){
+  $("sTotal").textContent = records.length;
+  $("sLite").textContent  = availByTier("lite");
+  $("sStd").textContent   = availByTier("standard");
+  $("sPow").textContent   = availByTier("power");
+}
+
+function renderRecords(){
+  const q = $("qSearch").value.trim().toLowerCase(), tf = $("qTier").value;
+  const rows = records.filter(r => (!tf || r.tier === tf) &&
+    (!q || [r.ref,r.name,r.empId,r.email,r.title,r.device.code,r.device.model].join(" ").toLowerCase().includes(q)));
+  if (!rows.length){
+    $("recRows").innerHTML = `<tr><td colspan="7"><div class="empty"><strong>No records</strong>
+      ${records.length ? "Try clearing the filters." : "Confirmed allocations will appear here."}</div></td></tr>`;
+    return;
+  }
+  $("recRows").innerHTML = rows.map(r => `
+    <tr>
+      <td class="mono">${esc(r.ref)}<div class="sub">${fmtDate(r.created)}</div></td>
+      <td>${esc(r.name)}<div class="sub">${esc(r.empId)} · ${esc(r.title)}<br>CC ${esc(r.cc)}</div></td>
+      <td>${tierBadge(r.tier)}${r.upgraded ? '<div class="sub" style="margin-top:3px">upgraded</div>' : ""}</td>
+      <td>${esc(r.kind)}</td>
+      <td>${esc(r.device.model)}<div class="sub mono">${esc(r.device.code)} · ${esc(r.device.serial)}</div></td>
+      <td>${esc(r.raisedByName)}<div class="sub">${esc(r.raisedBy)}</div></td>
+      <td class="rowacts"><button class="ghost sm" onclick="printForm('${r.ref}')">Issue form</button></td>
+    </tr>`).join("");
+}
+
+function renderStock(){
+  const q = ($("qStock").value || "").trim().toLowerCase(), st = $("qStockState").value;
+  const issued = issuedCodes();
+  const rows = stock.filter(u => {
+    if (q && ![u.code,u.model,u.serial].join(" ").toLowerCase().includes(q)) return false;
+    const isIssued = issued.has(u.code), blocked = u.condition !== "ok";
+    if (st === "available") return !blocked && !isIssued;
+    if (st === "blocked")   return blocked;
+    if (st === "issued")    return isIssued;
+    return true;
+  });
+  if (!rows.length){
+    $("stockRows").innerHTML = `<tr><td colspan="7"><div class="empty"><strong>No units</strong>
+      ${stock.length ? "Try clearing the filters." : "Add a unit, or import a CSV export."}</div></td></tr>`;
+    return;
+  }
+  $("stockRows").innerHTML = rows.map(u => {
+    const rec = issued.has(u.code) ? records.find(r => r.device.code === u.code) : null;
+    let status, acts;
+    if (rec){
+      status = `<span class="badge b-info">Issued</span><div class="sub">${esc(rec.name)}</div>`;
+      acts   = `<button class="ghost sm" onclick="openUnit('${u.code}')">Edit</button>`;
+    } else {
+      if (u.condition === "repair")      status = `<span class="badge b-warn">In repair</span>`;
+      else if (u.condition === "retire") status = `<span class="badge b-stop">Not for issue</span>`;
+      else                               status = `<span class="badge b-ok">Available</span>`;
+      acts = (u.condition === "ok"
+                ? `<button class="ghost sm" onclick="setCondition('${u.code}','repair')">In repair</button>`
+                : `<button class="ghost sm" onclick="setCondition('${u.code}','ok')">Available</button>`) +
+             `<button class="ghost sm" onclick="openUnit('${u.code}')">Edit</button>` +
+             `<button class="ghost sm" onclick="removeUnit('${u.code}')">Remove</button>`;
+    }
+    return `<tr>
+      <td class="mono">${esc(u.code)}</td>
+      <td>${esc(u.model)}
+          ${specLine(u) ? `<div class="sub mono">${esc(specLine(u))}</div>` : ""}
+          ${u.remark ? `<div class="sub" style="color:var(--warn)">${esc(u.remark)}</div>` : ""}</td>
+      <td>${tierBadge(u.tier)}</td>
+      <td class="mono">${esc(u.serial)}</td>
+      <td>${u.year ?? '<span class="sub">—</span>'}</td>
+      <td>${status}</td>
+      <td class="rowacts">${acts}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------------- issue form ---------------- */
+function printForm(ref){
+  const r = records.find(x => x.ref === ref);
+  if (!r) return;
+  $("printArea").innerHTML = `
+    <h2>Laptop Issue Form</h2>
+    <div class="p-sub">Reference ${esc(r.ref)} · Issued ${fmtDate(r.created)}</div>
+    <table>
+      <tr><th>Employee</th><td>${esc(r.name)}</td><th>Employee ID</th><td>${esc(r.empId)}</td></tr>
+      <tr><th>Email</th><td>${esc(r.email)}</td><th>Job title</th><td>${esc(r.title)}</td></tr>
+      <tr><th>Cost center</th><td>${esc(r.cc)}</td><th>Reason</th><td>${esc(r.kind)}</td></tr>
+      <tr><th>User category</th><td>${esc(TIERS[r.tier].label)}</td><th>Raised by</th><td>${esc(r.raisedByName)} (${esc(r.raisedBy)})</td></tr>
+      <tr><th>Asset code</th><td>${esc(r.device.code)}</td><th>Serial no.</th><td>${esc(r.device.serial)}</td></tr>
+      <tr><th>Model</th><td colspan="3">${esc(r.device.model)}${r.device.year ? " ("+r.device.year+")" : ""}</td></tr>
+      <tr><th>Configuration</th><td colspan="3">${esc(deviceSpecText(r.device))}</td></tr>
+    </table>
+    <p style="font-size:11px;margin-top:18px;line-height:1.6">
+      The employee named above acknowledges receipt of the equipment listed and accepts responsibility for its safe
+      keeping and proper use, and agrees to return it in working condition on request or on separation.
+    </p>
+    <div class="sign">
+      <div>Employee signature &amp; date</div><div>IT representative &amp; date</div><div>Line manager &amp; date</div>
+    </div>`;
+  window.print();
+}
+
+/* ---------------- CSV export ---------------- */
+function exportCSV(){
+  if (!records.length) { toast("No records to export."); return; }
+  const cols = ["ref","created","raisedBy","raisedByName","kind","name","empId","email","title","cc","tier","upgraded"];
+  const cell = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const head = [...cols,"device_code","device_model","device_serial","device_year",
+                "device_cpu","device_ram_gb","device_storage","device_gpu"].map(cell).join(",");
+  const body = records.map(r => [...cols.map(c => cell(r[c])),
+    cell(r.device.code), cell(r.device.model), cell(r.device.serial), cell(r.device.year),
+    cell(r.device.cpu), cell(r.device.ram), cell(r.device.disk), cell(r.device.gpu)].join(","));
+  const blob = new Blob(["﻿" + [head, ...body].join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "laptop-allocations-" + new Date().toISOString().slice(0,10) + ".csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  toast("Exported " + records.length + " record(s).");
+}
+
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  $("themeBtn").textContent = dark ? "Dark" : "Light";
+}
+
+/* ---------------- init ---------------- */
+const TITLES = ["Accountant Reporting","Applications Support","Buyer","Call Center Officer","CEO","Fleet Specialist",
+  "Government Relations Representitive","HR Specialist","IT Infrastructure Consultant","Labor Dispatching",
+  "Maintenance Supervisor","Meat Warehouses Supervisor","Network/System Support","Office Manager",
+  "POS/Restaurant Support","Production Supervisor","Quality Supervisor","Sales Area Manager","Sales Supervisor",
+  "Section Head","Senior Accountant","Shipping Supervisor","Store Keeper","Support Services Specialist",
+  "Support Services section Head","Talent Acquisition Manager","Tenants Relations Specialist",
+  "Warehousing & Distribution Manager","Warerhouse Manager","Warerhouses Assistant Manager"];
+const CCS = ["1340005","1340010","2101201","2101204","2101502","3101301","4011002","4011003","4021001","4021002",
+  "4031001","4041001","4051002","4061001","4061002","4071001","4071003","4081001","4091002","4101001"];
+$("titles").innerHTML = TITLES.map(t => `<option value="${esc(t)}">`).join("");
+$("ccs").innerHTML    = CCS.map(c => `<option value="${esc(c)}">`).join("");
+$("cfgUrl").value = cfg.url || DEFAULT_URL;
+$("cfgKey").value = cfg.key || "";
+
+$("veil").addEventListener("click", e => { if (e.target === $("veil")) closeUnit(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("veil").hidden) closeUnit(); });
+
+persistStock();
+refreshAll();
+</script>
+</body>
+</html>
